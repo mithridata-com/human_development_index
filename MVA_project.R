@@ -23,12 +23,20 @@ country_codes <- c("BE","BG","CZ","DK","DE",
 country_codes <- c("PT", "CPV", "ZAF", "RU")
 
 # list of indicators, that would be used to develop an index
-indicator_list <- c("LifeExp" = "SP.DYN.LE00.IN",
-                    "DeathRate" = "SP.DYN.CDRT.IN",
-                    "FertilityRate" = "SP.DYN.TFRT.IN",
-                    "GdpPerCapita" = "NY.GDP.PCAP.CD",
-                    "CO2_emissions" = "EN.ATM.CO2E.PC")
+indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN", 
+                    "Liv_DeathRate" = "SP.DYN.CDRT.IN",
+                    "Liv_FertilityRate" = "SP.DYN.TFRT.IN",
+                    
+                    "Edu_GovernExpend" = "SE.XPD.TOTL.GD.ZS",
+                    "Edu_PupilTeacherRatio" = "SE.PRM.ENRL.TC.ZS",
+                    "Edu_SchoolEnroll" = "SE.PRM.NENR",
+                    
+                    "Econ_GdpPerCapita" = "NY.GDP.PCAP.CD",
+                    "Econ_CO2emissions" = "EN.ATM.CO2E.PC",
+                    "Econ_Unemplyment" = "SL.UEM.TOTL.ZS"
+)
 
+cor(dat[,4:12], use = "complete")
 # here we use WDI package to download data
 # based on country_codes vector
 # and indicator_list vector
@@ -36,17 +44,12 @@ dat = WDI(indicator= indicator_list,
           country=country_codes, 
           start=1960, end=2019)
 
-
 # END OF MAIN CODE
 
 # TEST ZONE: Just test some ideas or watch data here
 # Let's draw Life Expectancy by country
-ggplot(dat) + geom_line(aes(x = year, y = LifeExp, color = country)) + 
-  xlab('Year') + ylab(attributes(dat$LifeExp)[[1]])
-
-# Let's draw CO2 emissions by country
-ggplot(dat) + geom_line(aes(x = year, y = CO2_emissions, color = country)) + 
-  xlab('Year') + ylab(attributes(dat$CO2_emissions)[[1]])
+ggplot(dat) + geom_line(aes(x = year, y = Liv_LifeExp, color = country)) + 
+  xlab('Year') + ylab(attributes(dat$Liv_LifeExp)[[1]])
 
 
 
