@@ -3,8 +3,11 @@
 # 2021
 
 # Installing packages, that are required for the project
-install.packages('WDI')
-install.packages('ggplot2')
+# skip this step if you already installed everything required
+#install.packages('WDI')
+#install.packages('ggplot2')
+#install.packages('dplyr')
+#install.packages('tidyr')
 
 # MAIN CODE STARTS HERE
 # Let's attach some packages
