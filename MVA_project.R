@@ -130,31 +130,30 @@ for(i in 1:nrow(metadata_links))
 metadata_links$sample_link_to_metadata <- NULL
 # when you need a detailed methodology - go to metadata_links$link column and paste the link to the web-browser
 head(metadata_links)
+#write.table(metadata_links, "metadata.csv")
 
 # here we use WDI package to download data
 # based on country_codes vector
 # and indicator_list vector
 raw_data = WDI(indicator= indicator_list,
           country=country_codes, 
-          start=1960, end=2020)
+          start=2019, end=2019)
 
 # here we compute basic data quality metrics such as completeness
 # higher score means higher quality
-data_quality_byIndicatorAndCountry <- raw_data %>%
-  gather(key = Indicator, value = Value, -iso2c, -country, -year) %>%
-  group_by(iso2c, country, Indicator) %>%
-  summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
-  ungroup()
-
-data_quality_byCountry <- raw_data %>%
-  gather(key = Indicator, value = Value, -iso2c, -country, -year) %>%
-  group_by(iso2c, country) %>%
-  summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
-  ungroup()
-
 data_quality_byIndicator <- raw_data %>%
   gather(key = Indicator, value = Value, -iso2c, -country, -year) %>%
   group_by(Indicator) %>%
   summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
   ungroup()
 
+# Let's find columns, that are 90% filled (42 out of 80)
+completeCols <- data_quality_byIndicator %>%
+  filter(MeanCompleteScore>=0.9) %>% 
+  select(Indicator) %>% unlist() %>% unname()
+
+# Here we create a subset of dataframe with complete columns, 
+# all NAs that are left are filled with mean 
+complete_data <- raw_data %>% 
+  select(iso2c, country, unlist(completeCols)) %>% 
+  mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
