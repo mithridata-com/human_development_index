@@ -170,3 +170,8 @@ data.pca <- prcomp(data.scaled, scale = FALSE)
 
 summary(data.pca)
 ggbiplot(data.pca)
+fviz_pca_ind(data.pca,
+             col.ind = "cos2", # Color by the quality of representation
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+)
