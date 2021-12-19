@@ -8,6 +8,8 @@
 #install.packages('ggplot2')
 #install.packages('dplyr')
 #install.packages('tidyr')
+#library(devtools)
+#install_github("vqv/ggbiplot")
 
 # MAIN CODE STARTS HERE
 # Let's attach some packages
@@ -15,6 +17,10 @@ library(WDI)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(factoextra)
+library(devtools)
+library(ggbiplot)
+
 
 # full list of country codes
 country_codes <- c("BE","BG","CZ","DK","DE",
@@ -42,7 +48,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Liv_IntentionalHomicide" = "VC.IHR.PSRC.P5",
                     "Liv_SlumHouses" = "EN.POP.SLUM.UR.ZS",
                     "Liv_AccessToElectricity" = "EG.ELC.ACCS.ZS",
-                    "Liv_BroadbankInternet" = "IT.NET.BBND.P2",
+                    "Liv_BroadbandInternet" = "IT.NET.BBND.P2",
                     "Liv_Population" = "SP.POP.TOTL",
                     "Liv_FemalePopulation" = "SP.POP.TOTL.FE.ZS",
                     "Liv_PopulationGrowth" = "SP.POP.GROW",
@@ -70,10 +76,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Social_Income81_100p" = "SI.DST.05TH.20",
                     
                     "Biz_TaxAndContributionRate" = "IC.TAX.TOTL.CP.ZS",
-                    "Biz_BusinessDisclosure" = "IC.BUS.DISC.XQ",
                     "Biz_TimeToStartBusiness" = "IC.REG.DURS",
-                    "Biz_DoingBusiness" = "IC.BUS.EASE.XQ",
-                    "Biz_CreditInformation" = "IC.CRD.INFO.XQ",
                     
                     "Edu_GovernExpend" = "SE.XPD.TOTL.GD.ZS",
                     "Edu_GovernExpendPerStudent" = "SE.XPD.SECO.PC.ZS",
@@ -135,13 +138,13 @@ head(metadata_links)
 # here we use WDI package to download data
 # based on country_codes vector
 # and indicator_list vector
-raw_data = WDI(indicator= indicator_list,
+data.raw = WDI(indicator= indicator_list,
           country=country_codes, 
           start=2019, end=2019)
 
 # here we compute basic data quality metrics such as completeness
 # higher score means higher quality
-data_quality_byIndicator <- raw_data %>%
+data_quality_byIndicator <- data.raw %>%
   gather(key = Indicator, value = Value, -iso2c, -country, -year) %>%
   group_by(Indicator) %>%
   summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
@@ -154,6 +157,19 @@ completeCols <- data_quality_byIndicator %>%
 
 # Here we create a subset of dataframe with complete columns, 
 # all NAs that are left are filled with mean 
-complete_data <- raw_data %>% 
+data <- data.raw %>% 
   select(iso2c, country, unlist(completeCols)) %>% 
   mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
+
+
+# first solution. 
+# 1.PCA
+data.scaled <- scale(data[,3:ncol(data)])
+row.names(data.scaled) <- data$country
+data.pca <- prcomp(data.scaled, scale = FALSE)
+
+summary(data.pca)
+
+
+
+ggbiplot(data.pca)
