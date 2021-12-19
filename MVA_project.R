@@ -147,7 +147,7 @@ data.raw = WDI(indicator= indicator_list,
 data_quality_byIndicator <- data.raw %>%
   gather(key = Indicator, value = Value, -iso2c, -country, -year) %>%
   group_by(Indicator) %>%
-  summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
+  dplyr::summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
   ungroup()
 
 # Let's find columns, that are 90% filled (42 out of 80)
@@ -169,7 +169,4 @@ row.names(data.scaled) <- data$country
 data.pca <- prcomp(data.scaled, scale = FALSE)
 
 summary(data.pca)
-
-
-
 ggbiplot(data.pca)
