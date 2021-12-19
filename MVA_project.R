@@ -74,10 +74,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Social_Income41_60p" = "SI.DST.03RD.20",
                     "Social_Income61_80p" = "SI.DST.04TH.20",
                     "Social_Income81_100p" = "SI.DST.05TH.20",
-                    
-                    "Biz_TaxAndContributionRate" = "IC.TAX.TOTL.CP.ZS",
-                    "Biz_TimeToStartBusiness" = "IC.REG.DURS",
-                    
+
                     "Edu_GovernExpend" = "SE.XPD.TOTL.GD.ZS",
                     "Edu_GovernExpendPerStudent" = "SE.XPD.SECO.PC.ZS",
                     "Edu_PupilTeacherRatio" = "SE.PRM.ENRL.TC.ZS",
@@ -111,10 +108,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Econ_TaxRevenue" = "GC.TAX.TOTL.GD.ZS",
                     "Econ_MilitaryExpenditure" = "MS.MIL.XPND.GD.ZS",
                     "Econ_TaxAndContributionRate" = "IC.TAX.TOTL.CP.ZS",
-                    "Econ_BusinessDisclosure" = "IC.BUS.DISC.XQ",
                     "Econ_TimeToStartBusiness" = "IC.REG.DURS",
-                    "Econ_DoingBusiness" = "IC.BUS.EASE.XQ",
-                    "Econ_CreditInformation" = "IC.CRD.INFO.XQ",
                     "Econ_GINI" = "SI.POV.GINI",
                     "Econ_GNIPerCapita" = "NY.GNP.PCAP.CD"
 )
@@ -168,10 +162,12 @@ data.scaled <- scale(data[,3:ncol(data)])
 row.names(data.scaled) <- data$country
 data.pca <- prcomp(data.scaled, scale = FALSE)
 
+varimax_loadings <- varimax(data.pca$rotation)
+varimax_loadings
+
 summary(data.pca)
 ggbiplot(data.pca)
 fviz_pca_ind(data.pca,
              col.ind = "cos2", # Color by the quality of representation
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
-             repel = TRUE     # Avoid text overlapping
-)
+             repel = TRUE)     # Avoid text overlapping
