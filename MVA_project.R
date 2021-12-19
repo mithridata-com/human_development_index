@@ -8,8 +8,10 @@
 #install.packages('ggplot2')
 #install.packages('dplyr')
 #install.packages('tidyr')
+#install.packages('devtools')
 #library(devtools)
 #install_github("vqv/ggbiplot")
+#install.packages('pracma')
 
 # MAIN CODE STARTS HERE
 # Let's attach some packages
@@ -20,7 +22,7 @@ library(tidyr)
 library(factoextra)
 library(devtools)
 library(ggbiplot)
-
+library(pracma)
 
 # full list of country codes
 country_codes <- c("BE","BG","CZ","DK","DE",
@@ -28,10 +30,10 @@ country_codes <- c("BE","BG","CZ","DK","DE",
                    "HR","IT","CY","LV","LT",
                    "LU","HU","MT","NL","AT",
                    "PL","PT","RO","SI","SK",
-                   "FI","SE", "CPV", "ZAF", "RU")
+                   "FI","SE", "CV", "ZA", "RU")
 
 # short list of country codes overwrites the previous one for quicker testing
-#country_codes <- c("PT", "CPV", "ZAF", "RU")
+#country_codes <- c("PT", "CV", "ZA", "RU")
 
 # list of indicators, that would be used to develop an index
 indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
@@ -47,7 +49,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Liv_AgeDependency" = "SP.POP.DPND",
                     "Liv_IntentionalHomicide" = "VC.IHR.PSRC.P5",
                     "Liv_SlumHouses" = "EN.POP.SLUM.UR.ZS",
-                    "Liv_AccessToElectricity" = "EG.ELC.ACCS.ZS",
+                    #"Liv_AccessToElectricity" = "EG.ELC.ACCS.ZS", croosed it out because of very low variance
                     "Liv_BroadbandInternet" = "IT.NET.BBND.P2",
                     "Liv_Population" = "SP.POP.TOTL",
                     "Liv_FemalePopulation" = "SP.POP.TOTL.FE.ZS",
@@ -132,8 +134,8 @@ head(metadata_links)
 # here we use WDI package to download data
 # based on country_codes vector
 # and indicator_list vector
-data.raw = WDI(indicator= indicator_list,
-          country=country_codes, 
+data.raw = WDI(indicator=indicator_list,
+          #country=country_codes, 
           start=2019, end=2019)
 
 # here we compute basic data quality metrics such as completeness
@@ -146,28 +148,57 @@ data_quality_byIndicator <- data.raw %>%
 
 # Let's find columns, that are 90% filled (42 out of 80)
 completeCols <- data_quality_byIndicator %>%
-  filter(MeanCompleteScore>=0.9) %>% 
+  filter(MeanCompleteScore>=0.67) %>% 
   select(Indicator) %>% unlist() %>% unname()
 
 # Here we create a subset of dataframe with complete columns, 
 # all NAs that are left are filled with mean 
 data <- data.raw %>% 
-  select(iso2c, country, unlist(completeCols)) %>% 
+  select(iso2c, country, unlist(completeCols)) %>%
   mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
 
 
 # first solution. 
-# 1.PCA
+# 1. PCA
+# 1.1. Ordinary PCA
 data.scaled <- scale(data[,3:ncol(data)])
 row.names(data.scaled) <- data$country
 data.pca <- prcomp(data.scaled, scale = FALSE)
-
-varimax_loadings <- varimax(data.pca$rotation)
-varimax_loadings
-
 summary(data.pca)
-ggbiplot(data.pca)
+data.pca$rotation[,1:10]
+eig.val <- get_eigenvalue(data.pca)
+eig.val
+
+# Biplot of individuals and variables
+fviz_pca_biplot(data.pca, repel = TRUE,
+                col.var = "#2E9FDF", # Variables color
+                col.ind = "#696969")  # Individuals color
+
+# Graph of individuals. Individuals with a similar profile are grouped together.
 fviz_pca_ind(data.pca,
              col.ind = "cos2", # Color by the quality of representation
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)     # Avoid text overlapping
+
+# Visualize eigenvalues (scree plot). Show the percentage of variances explained by each principal component.
+fviz_eig(data.pca)
+
+# Graph of variables. Positive correlated variables point to the same side of the plot. Negative correlated variables point to opposite sides of the graph
+fviz_pca_var(data.pca,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE)     # Avoid text overlapping
+
+# 1.2 Rotated loadings matrix
+ncomp <- 10
+rawLoadings     <- data.pca$rotation[,1:ncomp] %*% diag(data.pca$sdev, ncomp, ncomp)
+rotatedLoadings <- varimax(rawLoadings)$loadings
+rotatedLoadings
+invLoadings     <- t(pracma::pinv(rotatedLoadings))
+scores          <- data.scaled %*% invLoadings
+
+
+
+
+
+
