@@ -72,6 +72,8 @@ For now, our code parses following datasets in a form of time series with a brea
 * "Env_CO2emissions" = "EN.ATM.CO2E.PC",
 * "Env_ForestArea" = "AG.LND.FRST.ZS",
 * "Env_ArableLand" = "AG.LND.ARBL.ZS",
+* "Env_Accesselectric" = "API_EG.ELC.ACCS.ZS",
+* "Env_Renewoutput" = "API_EG.ELC.RNEW.ZS",
 * "Econ_GdpPerCapita" = "NY.GDP.PCAP.CD",
 * "Econ_GdpGrowth" = "NY.GDP.MKTP.KD.ZG",
 * "Econ_GdpGrowthPerCapita" = "NY.GDP.PCAP.KD.ZG",
