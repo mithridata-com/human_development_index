@@ -218,6 +218,12 @@ rect.hclust(fit_single, k=k.clust, border="red")
 groups_single <- cutree(fit_single, k=k.clust)
 
 
+#K-means clustering
+
+fit_complete2<-kmeans(d, k.clust, nstart=10)
+fit_complete2
+fviz_cluster(fit_complete2,d, ellipse.type = "norm", repel = TRUE)
+
 
 # Create three dendrograms
 dend_complete <- as.dendrogram (fit_complete)
