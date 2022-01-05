@@ -217,6 +217,10 @@ plot(fit_single)
 rect.hclust(fit_single, k=k.clust, border="red")
 groups_single <- cutree(fit_single, k=k.clust)
 
+fit_ward<-hclust(d, method="ward.D")
+plot(fit_ward)
+rect.hclust(fit_ward, k=k.clust, border="red")
+groups_single <- cutree(fit_ward, k=k.clust)
 
 #K-means clustering
 
