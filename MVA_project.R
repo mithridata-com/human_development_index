@@ -2,17 +2,6 @@
 # Professor Jorge Mendes
 # 2021
 
-# Installing packages, that are required for the project
-# skip this step if you already installed everything required
-#install.packages('WDI')
-#install.packages('ggplot2')
-#install.packages('dplyr')
-#install.packages('tidyr')
-#install.packages('devtools')
-#library(devtools)
-#install_github("vqv/ggbiplot")
-#install.packages('pracma')
-
 # MAIN CODE STARTS HERE
 # Let's attach some packages
 library(WDI)
@@ -23,6 +12,14 @@ library(factoextra)
 library(devtools)
 library(ggbiplot)
 library(pracma)
+library(dialr)
+library(countrycode)
+
+# Let's load classic HDI scores for 2019 
+url <- "https://raw.githubusercontent.com/mithridata-com/human_development_index/main/Classic_HDI_2019.csv"
+classic_HDI <- read.csv(url, sep = ";")
+classic_HDI$iso2c <- countryname(classic_HDI $Country, destination = 'iso2c')
+
 
 # full list of country codes
 country_codes <- c("BE","BG","CZ","DK","DE",
@@ -88,7 +85,8 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Edu_TrainTeachersPrimary" = "SE.PRM.TCAQ.ZS",
                     "Edu_ProgressionToSecondary" = "SE.SEC.PROG.MA.ZS",
                     "Edu_SchoolEnrollmentGenderParity" = "SE.ENR.PRSC.FM.ZS",
-                    
+                    "Edu_ExpectedSchoolYears" = "HD.HCI.EYRS",
+                    "Edu_MeanSchoolYears" = "BAR.SCHL.15UP",
                     #"Env_FreshwaterPerCapita" = "ER.H2O.INTR.PC",
                     #"Env_CO2emissions" = "EN.ATM.CO2E.PC",
                     #"Env_ForestArea" = "AG.LND.FRST.ZS",
@@ -113,6 +111,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Econ_TimeToStartBusiness" = "IC.REG.DURS",
                     "Econ_GINI" = "SI.POV.GINI",
                     "Econ_GNIPerCapita" = "NY.GNP.PCAP.CD"
+                    
 )
 
 # at this stage we prepare a metadata frame with links to official methodology
@@ -138,6 +137,8 @@ data.raw = WDI(indicator=indicator_list,
           #country=country_codes, 
           start=2019, end=2019)
 
+# with this we drop all non-country level data items (such as whole World etc)
+data.raw <- data.raw[check_cc(data.raw$iso2c),]
 # here we compute basic data quality metrics such as completeness
 # higher score means higher quality
 data_quality_byIndicator <- data.raw %>%
@@ -156,7 +157,6 @@ completeCols <- data_quality_byIndicator %>%
 data <- data.raw %>% 
   select(iso2c, country, unlist(completeCols)) %>%
   mutate_all(~ifelse(is.na(.x), mean(.x, na.rm = TRUE), .x))
-
 
 # first solution. 
 # 1. PCA
@@ -188,17 +188,15 @@ fviz_pca_var(data.pca,
              col.var = "contrib", # Color by contributions to the PC
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)     # Avoid text overlapping
-
+data.pca
 # 1.2 Rotated loadings matrix
 ncomp <- 10
-rawLoadings     <- data.pca$rotation[,1:ncomp] %*% diag(data.pca$sdev, ncomp, ncomp)
+rawLoadings <- data.pca$rotation[,1:ncomp] %*% diag(data.pca$sdev, ncomp, ncomp)
 rotatedLoadings <- varimax(rawLoadings)$loadings
 rotatedLoadings
-invLoadings     <- t(pracma::pinv(rotatedLoadings))
-scores          <- data.scaled %*% invLoadings
+invLoadings <- t(pracma::pinv(rotatedLoadings))
+scores <- data.scaled %*% invLoadings
+scores
 
-
-
-
-
-
+# let's join our data with classic HDI
+data_merged <- data %>% left_join(classic_HDI, by = ("iso2c"))

@@ -1,6 +1,5 @@
 # project on multivariate data analysis
-# Professor Jorge Mendes
-# 2021
+# 2021-2022
 
 # MAIN CODE STARTS HERE
 # Let's attach some packages
