@@ -268,3 +268,67 @@ summary(aov(PC_1 ~ CLUSTER_NUM,data = scores.df))
 # let's join our data with classic HDI
 data.HDI <- scores.df %>% left_join(classic_HDI, by = ("iso2c"))
 ggplot(data = data.HDI) + geom_point(aes(x = HDI, y = PC_1, color = factor(CLUSTER_NUM)))
+
+
+#factor analysis
+library(psych)
+library(stats)
+
+Y=cor(data.scaled)
+
+KMO(r=cor(data.scaled))
+# Liv_DeathRate is not very adequate for FA
+det(cor(Y))
+cortest.bartlett(Y)
+#we can proceed but dat ais not perfect for FA
+
+
+fit <- factanal(data.scaled, factors=3, rotation="varimax")
+fit 
+
+#checking residuals
+Lambda <- fit$loadings
+Psi <- diag(fit$uniquenesses)
+S <- fit$correlation
+Sigma <- Lambda %*% t(Lambda) + Psi
+round(S - Sigma, 3)
+
+# print results
+
+par(mfrow = c(1,3))
+
+plot(fit$loadings[,1], 
+     fit$loadings[,2],
+     xlab = "Factor 1", 
+     ylab = "Factor 2", 
+     ylim = c(-1,1),
+     xlim = c(-1,1),
+     main = "Varimax rotation")
+text(fit$loadings[,1]-0.08, 
+     fit$loadings[,2]+0.08,
+     col="blue")
+abline(h = 0, v = 0)
+
+plot(fit$loadings[,1], 
+     fit$loadings[,3],
+     xlab = "Factor 1", 
+     ylab = "Factor 3", 
+     ylim = c(-1,1),
+     xlim = c(-1,1),
+     main = "Varimax rotation")
+text(fit$loadings[,1]-0.08, 
+     fit$loadings[,3]+0.08,
+     col="blue")
+abline(h = 0, v = 0)
+
+plot(fit$loadings[,2], 
+     fit$loadings[,3],
+     xlab = "Factor 1", 
+     ylab = "Factor 3", 
+     ylim = c(-1,1),
+     xlim = c(-1,1),
+     main = "Varimax rotation")
+text(fit$loadings[,2]-0.08, 
+     fit$loadings[,3]+0.08,
+     col="blue")
+abline(h = 0, v = 0)
