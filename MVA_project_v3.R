@@ -49,14 +49,15 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Edu_ExpectedSchoolYears" = "HD.HCI.EYRS",
                     
                     "Econ_GdpPerCapita" = "NY.GDP.PCAP.CD",
+                    #"Econ_GNIPerCapita" = "NY.GNP.PCAP.CD",
                     "Econ_Unemployment" = "SL.UEM.TOTL.ZS",
                     "Econ_Inflation" = "FP.CPI.TOTL.ZG",
-                    "Econ_GINI" = "SI.POV.GINI",
-                    "Econ_GNIPerCapita" = "NY.GNP.PCAP.CD"
+                    "Econ_GINI" = "SI.POV.GINI"
+
 )
 
 # download data
-data.raw = WDI(indicator=indicator_list,
+data.raw_wdi = WDI(indicator=indicator_list,
                #country=country_codes, 
                start=2019, end=2019)
 
@@ -66,15 +67,15 @@ data.raw = WDI(indicator=indicator_list,
 vector_of_impact <- c(1,-1,1,-1,1,
                       1,-1,1,1,-1,
                       1,-1,1,1,1,1,1,1,1,1,
-                      1,-1,-1,-1,1)
+                      #1,-1,-1,-1,1
+                      1,-1,-1,-1)
 
+data.raw <- data.raw_wdi
 data.raw[,4:ncol(data.raw)] <- t(t(data.raw[,4:ncol(data.raw)]) * vector_of_impact)
 
 # with this we drop all non-country level data items (such as whole World etc)
-data.raw <- data.raw[check_cc(data.raw$iso2c),]
+data.raw <- data.raw[check_cc(data.raw$iso2c) & !(data.raw$iso2c %in% c("TD","CF","IR","AO")),]
 data.raw <- data.raw %>% group_by(iso2c, country) %>% filter(year == max(year)) %>% ungroup()
-
-
 
 # here we compute basic data quality metrics such as completeness
 # higher score means higher quality
@@ -90,15 +91,15 @@ data_quality_byCountry<- data.raw %>%
   dplyr::summarize(MeanCompleteScore = mean(ifelse(!is.na(Value),1,0))) %>%
   ungroup()
 
-# Let's find columns, that are 2/3 filled
+# Let's find columns, that are 1/2 filled
 completeCols <- data_quality_byIndicator %>%
-  filter(MeanCompleteScore>=0.50) %>% 
+  filter(MeanCompleteScore>=0.5) %>% 
   select(Indicator) %>% unlist() %>% unname()
 
 
-# Let's find columns, that are 2/3 filled
+# Let's find columns, that are 1/2 filled
 completeRows <- data_quality_byCountry %>%
-  filter(MeanCompleteScore>=0.50) %>% 
+  filter(MeanCompleteScore>=0.46) %>% 
   select(country) %>% unlist() %>% unname()
 
 # Here we create a subset of dataframe with complete columns, 
@@ -139,12 +140,10 @@ fviz_pca_var(data.pca,
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
              repel = TRUE)     # Avoid text overlapping
 
-fviz_contrib(data.pca, choice="var", axes = 5, top = 30,
+fviz_contrib(data.pca, choice="var", axes = 1, top = 30,
              fill = "lightgray", color = "black") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle=45))     # Avoid text overlapping
-
-round(data.pca$rotation,3)
 
 # 1.2 Rotated loadings matrix
 ncomp <- 5
@@ -157,24 +156,30 @@ varimaxed <- varimax(data.pca$rotation[,1:ncomp])
 data.varimax <- data.scaled %*% varimaxed$loadings
 data.varimax
 
-# PC 1
-# A measure of countries with weak health systems, with low immunization, low life exp. and high children mortality, undernourishment
+# PC 1 is responsible for overall wealth, comfort of life
+# It increases when we observe:
+# weak economical development, low levels of urbanization
+# very low levels of broadband internet penetration
+# shorter life expectancy
 
-# PC 2
-# A measure of strong economical development, high urbanization, 
-# wide-spread access to broadband internet and long life expectancy
+# PC 2 is responsible for overall risks of death 
+# It increases when we observe:
+# high risks of death
 
-# PC 3
-# A measure for countries with high death rates and limited access to internet
+# PC 3 is responsible for labor market condition
+# It increases when we observe:
+# unemployment grows
 
-# PC 4
-# A measure of weak labor markets
+# PC 4 is responsible for education level and quality of life
+# It increases when we observe:
+# Low levels of primary completion rate in schools
+# low levels of immunization and shorter life expectancy
+# low levels of children mortality and undernourishment
 
-# PC 5
-# A measure for countries with high inflation
+# PC 5 is responsible for inflationary concerns
+# It increases when we observe:
+# low inflation
 
-# PC 6 (taken out it since it gives worse clustering in the end)
-# A measure of educational development through primary completion rate and good life exp, 
 
 
 
@@ -196,11 +201,15 @@ fviz_nbclust(scores, hcut, nstart = 25, method = "gap_stat", nboot = 50)+labs(su
 
 nb <- NbClust(scores, distance = "minkowski", min.nc = 2,
               max.nc = 10, method = "kmeans")
-fviz_nbclust(nb)
+
+nb <- NbClust(scores, distance = "euclidean", min.nc = 2,
+              max.nc = 10, method = "kmeans")
+
 
 # so the optimal number of clusters are 2,3,5 or 7
 # we choose 7
 
+par(mfrow = c(1,1))
 
 k.clust <- 7
 fit_complete<-hclust(d, method="complete")
@@ -208,18 +217,6 @@ plot(fit_complete)
 rect.hclust(fit_complete, k=k.clust, border="red")
 groups_complete <- cutree(fit_complete, k=k.clust)
 data.frame(groups_complete) 
-
-fit_centroid<-hclust(d, method="centroid")
-plot(fit_centroid)
-rect.hclust(fit_centroid, k=k.clust, border="red")
-groups_centroid <- cutree(fit_centroid, k=k.clust)
-data.frame(groups_centroid)
-
-fit_single<-hclust(d, method="single")
-plot(fit_single)
-rect.hclust(fit_single, k=k.clust, border="red")
-groups_single <- cutree(fit_single, k=k.clust)
-data.frame(groups_single)
 
 fit_ward<-hclust(d, method="ward.D")
 plot(fit_ward)
@@ -234,21 +231,22 @@ fit_kmeans
 fviz_cluster(fit_kmeans,d, ellipse.type = "norm", repel = TRUE)
 fit_kmeans$centers
 
-# Create three dendrograms
-dend_complete <- as.dendrogram (fit_complete)
-dend_centroid <- as.dendrogram (fit_centroid)
-dend_single <- as.dendrogram (fit_single)
-dend_ward <- as.dendrogram (fit_ward)
-# Create a list to hold dendrograms
-dend_list <- dendlist(dend_complete, dend_centroid, dend_single,dend_ward)
-dend_list
+groups_kmeans <- fit_kmeans$cluster
+# # Create three dendrograms
+# dend_complete <- as.dendrogram (fit_complete)
+# dend_centroid <- as.dendrogram (fit_centroid)
+# dend_single <- as.dendrogram (fit_single)
+# dend_ward <- as.dendrogram (fit_ward)
+# # Create a list to hold dendrograms
+# dend_list <- dendlist(dend_complete, dend_centroid, dend_single,dend_ward)
+# dend_list
 #tanglegram(dend_complete, dend_centroid)
 
-cor.dendlist(dend_list, method = "cophenetic")
-cor.dendlist(dend_list, method = "baker")
+# cor.dendlist(dend_list, method = "cophenetic")
+# cor.dendlist(dend_list, method = "baker")
 # so now we know that four methods provide statisticaly different results
 
-scores.df <- data.frame(scores) %>% mutate(cluster = groups_complete)
+scores.df <- data.frame(scores) %>% mutate(cluster = groups_ward)
 scores.df$iso2c <- countryname(row.names(scores.df), destination = 'iso2c')
 colnames(scores.df) <- c(paste0("PC_",seq(1,ncomp,by = 1)),"CLUSTER_NUM", "iso2c")
 
@@ -265,70 +263,104 @@ scores.clust
 summary(aov(PC_1 ~ CLUSTER_NUM,data = scores.df))
 
 
+# Let's try to make an index of all PC scores, weighted by some values
+scale_to_a_range <- function(x){
+  (x - min(x, na.rm=TRUE)) / (max(x, na.rm=TRUE) - min(x, na.rm=TRUE))
+}
+
+scores.weights <- (eig.val[1:ncomp,]$variance.percent) #bad 
+#scores.weights2 <- sqrt(eig.val[1:ncomp,]$variance.percent) # worse
+#scores.weights3 <- abs((seq(1, ncomp, by = 1)/ncomp-1-1/ncomp)*ncomp) # terrible
+#scores.weights4 <- (eig.val[1:ncomp,]$eigenvalue) #bad 
+
+
 # let's join our data with classic HDI
-data.HDI <- scores.df %>% left_join(classic_HDI, by = ("iso2c"))
-ggplot(data = data.HDI) + geom_point(aes(x = HDI, y = PC_1, color = factor(CLUSTER_NUM)))
+data.HDI <- scores.df %>% 
+  left_join(classic_HDI, by = ("iso2c")) %>%
+  mutate(UN_HDI = HDI) %>% select(-HDI) %>%
+  mutate(Alternative_HDI = scale_to_a_range((-1*scores) %*% scores.weights)) %>%
+  arrange(desc(Alternative_HDI))
+
+cor(data.HDI$Alternative_HDI, data.HDI$UN_HDI)
 
 
-#factor analysis
-library(psych)
-library(stats)
-
-Y=cor(data.scaled)
-
-KMO(r=cor(data.scaled))
-# Liv_DeathRate is not very adequate for FA
-det(cor(Y))
-cortest.bartlett(Y)
-#we can proceed but dat ais not perfect for FA
+ggplot(data = data.HDI) + geom_point(aes(x = UN_HDI,
+                                         y = Alternative_HDI, 
+                                         #size = (1-scale_to_a_range(PC_1))*2+1, 
+                                         size = scale_to_a_range(-1*PC_1)^exp(1)*10,
+                                         color = factor(CLUSTER_NUM)), alpha = 0.75)
 
 
-fit <- factanal(data.scaled, factors=3, rotation="varimax")
-fit 
 
-#checking residuals
-Lambda <- fit$loadings
-Psi <- diag(fit$uniquenesses)
-S <- fit$correlation
-Sigma <- Lambda %*% t(Lambda) + Psi
-round(S - Sigma, 3)
+ggplot(data = data.HDI) + geom_point(aes(x = UN_HDI,
+                                         y =PC_1, 
+                                         #size = (1-scale_to_a_range(PC_1))*2+1, 
+                                         #size = scale_to_a_range(-1*PC_1)^exp(1)*10,
+                                         color = factor(CLUSTER_NUM)), alpha = 0.75)
 
-# print results
+# #factor analysis
+# library(psych)
+# library(stats)
+# 
+# Y=cor(data.scaled)
+# 
+# KMO(r=cor(data.scaled))
+# # Liv_DeathRate is not very adequate for FA
+# det(cor(Y))
+# cortest.bartlett(Y)
+# #we can proceed but dat ais not perfect for FA
+# 
+# covmat <- cor(data.scaled)
+# 
+# fit <- factanal(data.scaled[,c(1:12)], factors=4, 
+#                 rotation="varimax",
+#                 control = list(nstart = 3, trace = T))
+# fit 
+# 
+# #checking residuals
+# Lambda <- fit$loadings
+# Psi <- diag(fit$uniquenesses)
+# S <- fit$correlation
+# Sigma <- Lambda %*% t(Lambda) + Psi
+# round(S - Sigma, 3)
+# 
+# # print results
+# 
+# par(mfrow = c(1,3))
+# 
+# plot(fit$loadings[,1], 
+#      fit$loadings[,2],
+#      xlab = "Factor 1", 
+#      ylab = "Factor 2", 
+#      ylim = c(-1,1),
+#      xlim = c(-1,1),
+#      main = "Varimax rotation")
+# text(fit$loadings[,1]-0.08, 
+#      fit$loadings[,2]+0.08,
+#      col="blue")
+# abline(h = 0, v = 0)
+# 
+# plot(fit$loadings[,1], 
+#      fit$loadings[,3],
+#      xlab = "Factor 1", 
+#      ylab = "Factor 3", 
+#      ylim = c(-1,1),
+#      xlim = c(-1,1),
+#      main = "Varimax rotation")
+# text(fit$loadings[,1]-0.08, 
+#      fit$loadings[,3]+0.08,
+#      col="blue")
+# abline(h = 0, v = 0)
+# 
+# plot(fit$loadings[,2], 
+#      fit$loadings[,3],
+#      xlab = "Factor 1", 
+#      ylab = "Factor 3", 
+#      ylim = c(-1,1),
+#      xlim = c(-1,1),
+#      main = "Varimax rotation")
+# text(fit$loadings[,2]-0.08, 
+#      fit$loadings[,3]+0.08,
+#      col="blue")
+# abline(h = 0, v = 0)
 
-par(mfrow = c(1,3))
-
-plot(fit$loadings[,1], 
-     fit$loadings[,2],
-     xlab = "Factor 1", 
-     ylab = "Factor 2", 
-     ylim = c(-1,1),
-     xlim = c(-1,1),
-     main = "Varimax rotation")
-text(fit$loadings[,1]-0.08, 
-     fit$loadings[,2]+0.08,
-     col="blue")
-abline(h = 0, v = 0)
-
-plot(fit$loadings[,1], 
-     fit$loadings[,3],
-     xlab = "Factor 1", 
-     ylab = "Factor 3", 
-     ylim = c(-1,1),
-     xlim = c(-1,1),
-     main = "Varimax rotation")
-text(fit$loadings[,1]-0.08, 
-     fit$loadings[,3]+0.08,
-     col="blue")
-abline(h = 0, v = 0)
-
-plot(fit$loadings[,2], 
-     fit$loadings[,3],
-     xlab = "Factor 1", 
-     ylab = "Factor 3", 
-     ylim = c(-1,1),
-     xlim = c(-1,1),
-     main = "Varimax rotation")
-text(fit$loadings[,2]-0.08, 
-     fit$loadings[,3]+0.08,
-     col="blue")
-abline(h = 0, v = 0)
