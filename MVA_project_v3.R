@@ -8,6 +8,7 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(factoextra)
+library(usethis)
 library(devtools)
 library(ggbiplot)
 library(pracma)
@@ -35,7 +36,7 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
                     "Health_BirthBySkilledStaff" = "SH.STA.BRTC.ZS",
                     "Health_HospitalBeds" = "SH.MED.BEDS.ZS",
                     "Health_Under5Mortality" = "SH.DYN.MORT",
-
+                    
                     "Edu_GovernExpend" = "SE.XPD.TOTL.GD.ZS",
                     "Edu_PupilTeacherRatio" = "SE.PRM.ENRL.TC.ZS",
                     "Edu_SchoolEnroll" = "SE.PRM.NENR",
@@ -56,8 +57,8 @@ indicator_list <- c("Liv_LifeExp" = "SP.DYN.LE00.IN",
 
 # download data
 data.raw = WDI(indicator=indicator_list,
-          #country=country_codes, 
-          start=2019, end=2019)
+               #country=country_codes, 
+               start=2019, end=2019)
 
 
 #this vector will change the direction of variables, so their interpretation can be done easier
@@ -146,7 +147,7 @@ fviz_contrib(data.pca, choice="var", axes = 5, top = 30,
 round(data.pca$rotation,3)
 
 # 1.2 Rotated loadings matrix
-ncomp <- 6
+ncomp <- 5
 rawLoadings <- data.pca$rotation[,1:ncomp] %*% diag(data.pca$sdev, ncomp, ncomp)
 rotatedLoadings <- varimax(rawLoadings)$loadings
 rotatedLoadings
@@ -172,8 +173,9 @@ data.varimax
 # PC 5
 # A measure for countries with high inflation
 
-# PC 6
-# A measure of educational development through primary completion rate
+# PC 6 (taken out it since it gives worse clustering in the end)
+# A measure of educational development through primary completion rate and good life exp, 
+
 
 
 invLoadings <- t(pracma::pinv(rotatedLoadings))
@@ -192,11 +194,11 @@ fviz_nbclust(scores, hcut, method = "silhouette")+labs(subtitle = "Silhoutte met
 fviz_nbclust(scores, hcut, nstart = 25, method = "gap_stat", nboot = 50)+labs(subtitle = "Gap statistic method")
 
 
-nb <- NbClust(scores, distance = "euclidean", min.nc = 2,
+nb <- NbClust(scores, distance = "minkowski", min.nc = 2,
               max.nc = 10, method = "kmeans")
 fviz_nbclust(nb)
 
-# so the optimal number of clusters are 2,7 or 8
+# so the optimal number of clusters are 2,3,5 or 7
 # we choose 7
 
 
@@ -205,54 +207,58 @@ fit_complete<-hclust(d, method="complete")
 plot(fit_complete)
 rect.hclust(fit_complete, k=k.clust, border="red")
 groups_complete <- cutree(fit_complete, k=k.clust)
+data.frame(groups_complete) 
 
 fit_centroid<-hclust(d, method="centroid")
 plot(fit_centroid)
 rect.hclust(fit_centroid, k=k.clust, border="red")
 groups_centroid <- cutree(fit_centroid, k=k.clust)
+data.frame(groups_centroid)
 
 fit_single<-hclust(d, method="single")
 plot(fit_single)
 rect.hclust(fit_single, k=k.clust, border="red")
 groups_single <- cutree(fit_single, k=k.clust)
+data.frame(groups_single)
 
 fit_ward<-hclust(d, method="ward.D")
 plot(fit_ward)
 rect.hclust(fit_ward, k=k.clust, border="red")
-groups_single <- cutree(fit_ward, k=k.clust)
+groups_ward <- cutree(fit_ward, k=k.clust)
+data.frame(groups_ward)
 
 #K-means clustering
 
-fit_complete2<-kmeans(d, k.clust, nstart=10)
-fit_complete2
-fviz_cluster(fit_complete2,d, ellipse.type = "norm", repel = TRUE)
-
+fit_kmeans<-kmeans(d, k.clust, nstart=10)
+fit_kmeans
+fviz_cluster(fit_kmeans,d, ellipse.type = "norm", repel = TRUE)
+fit_kmeans$centers
 
 # Create three dendrograms
 dend_complete <- as.dendrogram (fit_complete)
 dend_centroid <- as.dendrogram (fit_centroid)
 dend_single <- as.dendrogram (fit_single)
+dend_ward <- as.dendrogram (fit_ward)
 # Create a list to hold dendrograms
-dend_list <- dendlist(dend_complete, dend_centroid, dend_single)
+dend_list <- dendlist(dend_complete, dend_centroid, dend_single,dend_ward)
 dend_list
 #tanglegram(dend_complete, dend_centroid)
 
 cor.dendlist(dend_list, method = "cophenetic")
 cor.dendlist(dend_list, method = "baker")
-# so now we know that three methods provide statisticaly different results
+# so now we know that four methods provide statisticaly different results
 
 scores.df <- data.frame(scores) %>% mutate(cluster = groups_complete)
 scores.df$iso2c <- countryname(row.names(scores.df), destination = 'iso2c')
 colnames(scores.df) <- c(paste0("PC_",seq(1,ncomp,by = 1)),"CLUSTER_NUM", "iso2c")
 
 scores.clust <- scores.df %>% 
- group_by(CLUSTER_NUM) %>% 
+  group_by(CLUSTER_NUM) %>% 
   dplyr::summarise(meanPC_1 = mean(PC_1),
-            meanPC_2 = mean(PC_2),
-            meanPC_3 = mean(PC_3),
-            meanPC_4 = mean(PC_4),
-            meanPC_5 = mean(PC_5),
-            meanPC_6 = mean(PC_6))
+                   meanPC_2 = mean(PC_2),
+                   meanPC_3 = mean(PC_3),
+                   meanPC_4 = mean(PC_4),
+                   meanPC_5 = mean(PC_5))
 
 scores.clust
 # test if cluster is important
