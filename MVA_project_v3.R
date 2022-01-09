@@ -225,7 +225,7 @@ groups_complete <- cutree(fit_complete, k=k.clust)
 data.frame(groups_complete) 
 
 fit_ward<-hclust(d, method="ward.D")
-plot(fit_ward)
+plot(fit_ward, cex = 0.6)
 rect.hclust(fit_ward, k=k.clust, border="red")
 groups_ward <- cutree(fit_ward, k=k.clust)
 data.frame(groups_ward)
@@ -466,6 +466,12 @@ p8 <- p8 + labs(x = paste0("Cluster#"),
                 title = paste0("Boxplots of alternative HDI by cluster"),
                 fill = "Cluster#")
 p8
+
+data.export <- data.HDI %>% 
+  select(Country, Alternative_HDI, CLUSTER_NUM) %>%
+  mutate(Alternative_HDI = round((Alternative_HDI+0.01)*100,0))
+write.table(data.export, "data_export.csv", sep = ";", dec = ",", row.names = F)
+
 
 # #factor analysis
 # library(psych)
