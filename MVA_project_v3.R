@@ -16,6 +16,12 @@ library(dialr)
 library(countrycode)
 library(NbClust)
 library(dendextend)
+
+library(ggrepel)
+library(mdatools)
+library(ggfortify)
+library(stargazer)
+
 options(scipen = 999)
 set.seed(1)
 
@@ -246,17 +252,17 @@ groups_kmeans <- fit_kmeans$cluster
 # cor.dendlist(dend_list, method = "baker")
 # so now we know that four methods provide statisticaly different results
 
-scores.df <- data.frame(scores) %>% mutate(cluster = groups_ward)
+scores.df <- data.frame(scores) %>% mutate(cluster = factor(groups_ward))
 scores.df$iso2c <- countryname(row.names(scores.df), destination = 'iso2c')
 colnames(scores.df) <- c(paste0("PC_",seq(1,ncomp,by = 1)),"CLUSTER_NUM", "iso2c")
 
 scores.clust <- scores.df %>% 
   group_by(CLUSTER_NUM) %>% 
-  dplyr::summarise(meanPC_1 = mean(PC_1),
-                   meanPC_2 = mean(PC_2),
-                   meanPC_3 = mean(PC_3),
-                   meanPC_4 = mean(PC_4),
-                   meanPC_5 = mean(PC_5))
+  dplyr::summarise(PC_1 = round(mean(PC_1),3),
+                   PC_2 = round(mean(PC_2),3),
+                   PC_3 = round(mean(PC_3),3),
+                   PC_4 = round(mean(PC_4),3),
+                   PC_5 = round(mean(PC_5),3))
 
 scores.clust
 # test if cluster is important
@@ -279,24 +285,187 @@ data.HDI <- scores.df %>%
   left_join(classic_HDI, by = ("iso2c")) %>%
   mutate(UN_HDI = HDI) %>% select(-HDI) %>%
   mutate(Alternative_HDI = scale_to_a_range((-1*scores) %*% scores.weights)) %>%
-  arrange(desc(Alternative_HDI))
+  mutate(PC_1_size = scale_to_a_range(-1*PC_1)^exp(1)*10)
 
-cor(data.HDI$Alternative_HDI, data.HDI$UN_HDI)
+corHDI <- round(cor(data.HDI$Alternative_HDI, data.HDI$UN_HDI)*100,1)
+corHDI
+
+p1 <- ggplot(data = data.HDI) + theme_bw()
+p1 <- p1 + geom_point(aes(x = UN_HDI,
+                          y = Alternative_HDI, 
+                          #size = PC_1,
+                          #shape = factor(sign(PC_1)),
+                          color = factor(CLUSTER_NUM)), alpha = 0.75)
+
+p1 <- p1 + geom_smooth(aes(x = UN_HDI,
+                           y = Alternative_HDI),
+                       method = "glm",
+                       se = F, 
+                       color = "darkgrey",linetype = "dashed", alpha = 0.75)
+
+p1 <- p1 + labs(x = "United Nations HDI",
+                y = "Alternative HDI",
+                title = paste0("UN HDI vs alternative HDI (based on PC)"),
+                subtitle = paste0("Correlation between two HDIs = ",corHDI,"%"),
+                size = "PC1",
+                shape = "Sign of PC1",
+                color = "Cluster #")
+p1 <- p1 + theme(legend.position = c(0.85, 0.13)) + guides(color=guide_legend(nrow=2,byrow=TRUE))
+#p1 <- p1 + theme(legend.position="bottom")
+p1
 
 
-ggplot(data = data.HDI) + geom_point(aes(x = UN_HDI,
-                                         y = Alternative_HDI, 
-                                         #size = (1-scale_to_a_range(PC_1))*2+1, 
-                                         size = scale_to_a_range(-1*PC_1)^exp(1)*10,
-                                         color = factor(CLUSTER_NUM)), alpha = 0.75)
+### PLOT 2 
+angle <- function(x,y){
+  dot.prod <- x%*%y 
+  norm.x <- norm(x,type="2")
+  norm.y <- norm(y,type="2")
+  theta <- acos(dot.prod / (norm.x * norm.y))
+  as.numeric(theta)
+}
 
 
+PC1.var <- round(eig.val$variance.percent[1],0)
+PC2.var <- round(eig.val$variance.percent[2],0)
 
-ggplot(data = data.HDI) + geom_point(aes(x = UN_HDI,
-                                         y =PC_1, 
-                                         #size = (1-scale_to_a_range(PC_1))*2+1, 
-                                         #size = scale_to_a_range(-1*PC_1)^exp(1)*10,
-                                         color = factor(CLUSTER_NUM)), alpha = 0.75)
+p2 <- ggplot(data = data.HDI) + theme_bw()
+p2 <- p2 + geom_point(aes(x = PC_1,
+                          y = PC_2,
+                          color = UN_HDI))
+                                           
+p2 <- p2 + scale_colour_gradient(low = "green", 
+                                 high = "red",
+                                 space = "Lab",
+                                 na.value = "grey50",  
+                                 guide = "colourbar",  
+                                 aesthetics = "colour")
+
+p2 <- p2 + labs(x = paste0("PC 1 (", PC1.var,"% of variance)"),
+                y = paste0("PC 2 (", PC2.var,"% of variance)"),
+                title = paste0("PC 1 vs PC 2, coloured by UN HDI"),
+                color = "UN HDI")
+p2 <- p2 + geom_vline(xintercept = 0)
+p2 <- p2 + geom_hline(yintercept = 0)
+p2 <- p2 + geom_label_repel(aes(x = PC_1,
+                            y = PC_2, label = Country),
+                            label.size = NA, 
+                            fill = NA,
+                            size=3,
+                            max.overlaps = 4, 
+                            min.segment.length=0, 
+                            box.padding=0.5, 
+                            label.padding=0, 
+                            point.padding=0)
+p2
+
+
+####PLOT 3
+PC1.var <- round(eig.val$variance.percent[1],0)
+PC2.var <- round(eig.val$variance.percent[2],0)
+
+p3 <- ggplot(data = data.HDI) + theme_bw()
+p3 <- p3 + geom_text(aes(x = PC_1,
+                        y = PC_2,
+                        label = iso2c,
+                        color = factor(CLUSTER_NUM)))
+
+
+p3 <- p3 + labs(x = paste0("PC 1 (", PC1.var,"% of variance)"),
+                y = paste0("PC 2 (", PC2.var,"% of variance)"),
+                title = paste0("PC 1 vs PC 2 by cluster"),
+                color = "Cluster")
+p3 <- p3 + geom_vline(xintercept = 0)
+p3 <- p3 + geom_hline(yintercept = 0)
+#p3 <- p3 + geom_label_repel(aes(x = PC_1,
+                            #     y = PC_2, label = iso2c),
+                            # label.size = NA, 
+                            # fill = NA,
+                            # size=3,
+                            # max.overlaps = 8, 
+                            # min.segment.length=0, 
+                            # box.padding=0.5, 
+                            # label.padding=0, 
+                            # point.padding=0)
+p3
+
+#### PLOT 4 
+var_explained_df <- data.frame(PC_NUM= 1:11,
+                               PC= paste0("PC",1:11),
+                               var_explained=(data.pca$sdev)^2/sum((data.pca$sdev)^2))
+
+p4 <- ggplot(data = var_explained_df) + theme_bw()
+p4 <- p4 + geom_col(aes(x = PC_NUM, y = var_explained), fill= rgb(190,214,47, maxColorValue = 255))
+p4 <- p4 + geom_line(aes(x = PC_NUM, y = var_explained, group=1))+
+  geom_point(aes(x = PC_NUM, y = var_explained, group=1), size=4)
+p4 <- p4 + labs(x = "Principal component",
+                y = "Variance explanied (%)",
+                title = paste0("Scree plot: PCA on scaled data"))
+p4 <- p4 + geom_label_repel(aes(x = PC_NUM,
+                                y = var_explained, label = paste0(round(var_explained*100,0),"%")),
+                                label.size = NA,
+                                fill = NA,
+                                size=3,
+                                max.overlaps = 8,
+                                min.segment.length=0,
+                                box.padding=0.5,
+                                label.padding=0,
+                                point.padding=0)
+p4 <- p4 + scale_x_continuous(labels=as.character(var_explained_df$PC_NUM),breaks=var_explained_df$PC_NUM)
+p4
+
+
+#### PLOT 5 and 6
+data.pca2 <- pca(data.scaled, center = F, scale = F)
+plot(data.pca2, show.labels = T)
+
+
+autoplot(data.pca, data = data.HDI, colour = 'PC_3',
+         loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
+
+
+par(mfrow = c(1, 2))
+
+plotScores(data.pca2, c(1, 2), 
+           main = "PC1 vs PC2 Scores (colour by UN HDI)",
+           show.labels = F, 
+           cgroup = data.HDI$UN_HDI, 
+           labels = data.HDI$CLUSTER_NUM)
+
+mdaplot(data.pca2$loadings, type = 'p', #p
+        main = "Loadings",
+        col = rgb(190,214,47, maxColorValue = 255),
+        lab.col = rgb(92,102,108, maxColorValue = 255),
+        show.labels = T, 
+        show.lines = c(0, 0))
+
+getwd()
+### PLOT 7
+par(mfrow = c(1,1))
+stargazer(scores.clust,
+          summary = F,
+          rownames = F,
+          align=T, 
+          digits=2, digits.extra = 2,
+          column.labels = c("#", "PC1","PC2","PC3","PC4","PC5"),
+          covariate.labels = c("#", "PC1","PC2","PC3","PC4","PC5"),
+          out="Clusters.html", 
+          type = "html",
+          title="Clusters' mean of principal components")
+
+
+### PLOT 8
+p8 <- ggplot(data.HDI) + theme_bw()
+p8 <- p8 + geom_boxplot(outlier.shape = NA, coef = 2,
+                        aes(x = reorder(CLUSTER_NUM, Alternative_HDI), 
+                            y = Alternative_HDI, fill = CLUSTER_NUM), show.legend = F)
+p8 <- p8 + geom_jitter(aes(x = reorder(CLUSTER_NUM, Alternative_HDI), 
+                       y = Alternative_HDI),width = 0.2)
+p8 <- p8 + labs(x = paste0("Cluster#"),
+                y = paste0("Value of alternative HDI"),
+                title = paste0("Boxplots of alternative HDI by cluster"),
+                fill = "Cluster#")
+p8
 
 # #factor analysis
 # library(psych)
